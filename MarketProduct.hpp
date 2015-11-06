@@ -10,17 +10,19 @@
 class MarketProduct {
 private:
 public:
-    MarketProduct(const std::string &Id, int intCatId, const std::string &Title, const std::string &ProductUrl, double Price) : Id(
-            Id), catId(intCatId), Title(Title), ProductUrl(ProductUrl), Price(Price) { }
+    MarketProduct(int intCatId, const std::string &Title, const std::string &ProductUrl) :
+            catId(intCatId), Title(Title), ProductUrl(ProductUrl) { }
+    MarketProduct(const int &intId, int intCatId, const std::string &Title, const std::string &ProductUrl) :
+            Id(intId), catId(intCatId), Title(Title), ProductUrl(ProductUrl) { }
 
 private:
 public:
-    const std::string &getId() const {
-        return Id;
+    const std::string &getIdentifier() const {
+        return Identifier;
     }
 
-    void setId(const std::string &Id) {
-        MarketProduct::Id = Id;
+    void setIdentifier(const std::string &Id) {
+        MarketProduct::Identifier = Id;
     }
 
     const std::string &getTitle() const {
@@ -55,8 +57,17 @@ public:
         MarketProduct::catId = catId;
     }
 
+    int getId() const {
+        return Id;
+    }
+
+    void setId(int id) {
+        MarketProduct::Id = id;
+    }
+
 private:
-    std::string Id;
+    int Id;
+    std::string Identifier;
     int catId=0;
     std::string Title;
     std::string ProductUrl;

@@ -10,9 +10,10 @@
 
 #include <QtSql>
 #include <QDebug>
+#include <QtSql/qsqldatabase.h>
 
 
-static const std::vector<std::string> skipWordsCategory = {"supermarket"};
+static const std::vector<std::string> skipWordsCategory = {"supermarket", "imbracaminte"};
 static const std::vector<std::string> skipWordsProduct = {};
 
 enum class TaskResult {Completed=1 , Failed};
@@ -22,17 +23,22 @@ class EMagMarket : public WebMarket {
     Q_OBJECT
 public:
     EMagMarket();
+    ~EMagMarket() {db.close();};
     virtual Collect fetchCategories() override;
     virtual Collect fetchProducts() override;
-
     virtual Collect fetchProductsFromCategory(ProductCategory &);
+    virtual Collect fetchProductPrice(int);
 
 private:
     QSqlDatabase db;
+
     ClickElementResult clickProductListNextPage(EMagWebPage &);
+
+    TaskResult fetchCategoriesFromDb();
     TaskResult addProductsToDb (std::vector<MarketProduct> &);
     TaskResult addCategoriesToDb (std::vector<ProductCategory> &);
 
+    bool equalProductsAndDesctiptions();
 };
 
 

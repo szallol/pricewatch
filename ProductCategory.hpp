@@ -14,6 +14,8 @@ public:
     ProductCategory(int intShopId, const std::string &strName, std::string strCategoryUrl)
             : shopId(intShopId), Name(strName), CategoryUrl(strCategoryUrl) { }
 
+    ProductCategory(int intId, int intShopId, const std::string &strName, std::string strCategoryUrl)
+            : Id(intId), shopId(intShopId), Name(strName), CategoryUrl(strCategoryUrl) { }
 public:
     const std::string &getName() const {
         return Name;

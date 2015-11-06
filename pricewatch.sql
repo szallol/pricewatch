@@ -30,21 +30,48 @@ CREATE TABLE IF NOT EXISTS `categories` (
 -- Data exporting was unselected.
 
 
--- Dumping structure for table pricewatch.products
-CREATE TABLE IF NOT EXISTS `products` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `shop_id` int(10) unsigned NOT NULL,
-  `cat_id` int(10) unsigned NOT NULL,
+-- Dumping structure for table pricewatch.prices
+CREATE TABLE IF NOT EXISTS `prices` (
+  `id` int(10) unsigned NOT NULL,
+  `product_id` int(10) unsigned NOT NULL,
+  `timestamp_id` int(10) unsigned NOT NULL,
+  `price` float unsigned NOT NULL,
+  KEY `id` (`id`),
+  KEY `FK__products` (`product_id`),
+  KEY `FK__timestamps` (`timestamp_id`),
+  CONSTRAINT `FK__timestamps` FOREIGN KEY (`timestamp_id`) REFERENCES `timestamps` (`id`),
+  CONSTRAINT `FK_prices_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- Data exporting was unselected.
+
+
+-- Dumping structure for table pricewatch.productdetails
+CREATE TABLE IF NOT EXISTS `productdetails` (
+  `id` int(11) unsigned NOT NULL,
   `identifier` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL,
   `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
   `url` varchar(1024) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
   `description` mediumtext CHARACTER SET utf8 COLLATE utf8_unicode_ci,
   `specs` mediumtext CHARACTER SET utf8 COLLATE utf8_unicode_ci,
   `picture` mediumtext CHARACTER SET utf8 COLLATE utf8_unicode_ci,
-  KEY `id` (`id`),
+  UNIQUE KEY `id_unique` (`id`),
+  KEY `id_key` (`id`),
+  FULLTEXT KEY `identifier_title_url_description_specs` (`title`,`url`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- Data exporting was unselected.
+
+
+-- Dumping structure for table pricewatch.products
+CREATE TABLE IF NOT EXISTS `products` (
+  `id` int(11) unsigned NOT NULL,
+  `shop_id` int(10) unsigned NOT NULL,
+  `cat_id` int(10) unsigned NOT NULL,
+  UNIQUE KEY `id_unique` (`id`),
   KEY `FK_products_shops` (`shop_id`),
   KEY `FK_products_categories` (`cat_id`),
-  FULLTEXT KEY `identifier_title_url_description_specs` (`identifier`,`title`,`url`,`description`,`specs`),
+  KEY `id_key` (`id`),
   CONSTRAINT `FK_products_categories` FOREIGN KEY (`cat_id`) REFERENCES `categories` (`id`),
   CONSTRAINT `FK_products_shops` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

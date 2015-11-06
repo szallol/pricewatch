@@ -3,6 +3,14 @@ project(pricewatch)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -march=i686")
+
+#enable_testing()
+#set(GTEST_INCLUDE_DIR "c:/googletest-master/googletest/include")
+#set(GTEST_LIBRARY "c:/googletest-master/googletest/bin/Debug/libgtest.a")
+#set(GTEST_MAIN_LIBRARY "c:/googletest-master/googletest/bin/Debug/libgtest_main.a")
+#find_package(GTest REQUIRED)
+#include_directories(${GTEST_INCLUDE_DIRS})
+
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -57,4 +65,5 @@ set(SOURCE_FILES main.cpp MarketWebPage.cpp MarketWebPage.hpp
         WebMarket.cpp WebMarket.hpp
         EMagMarket.cpp EMagMarket.hpp MarketProduct.cpp MarketProduct.hpp)
 add_executable(pricewatch ${SOURCE_FILES})
+#target_link_libraries(pricewatch ${GTEST_BOTH_LIBRARIES${Boost_LIBRARIES} Qt5::Widgets Qt5::WebKitWidgets Qt5::Sql)
 target_link_libraries(pricewatch ${Boost_LIBRARIES} Qt5::Widgets Qt5::WebKitWidgets Qt5::Sql)
