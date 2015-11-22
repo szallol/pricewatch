@@ -1,26 +1,33 @@
+#pragma clang diagnostic ignored "-Wignored-attributes"
+
 #include <QApplication>
 #include <QtWebKitWidgets/QWebView>
 #include <QtWebKitWidgets/qwebframe.h>
 #include <QTimer>
 
 #include <boost/program_options.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <iostream>
+#include <thread>
 
 #include "EMagMarket.hpp"
 
 namespace  po = boost::program_options;
 using namespace std;
 
-static const vector<string> sitesAvailable {"emag.ro"};
+static const vector<string> sitesAvailable {"emag.ro", "altex.ro"};
 
 int main(int argv, char **args) {
+    BOOST_LOG_TRIVIAL(info) << "pricewatch..." ;
     QApplication app(argv, args);
     app.setApplicationName("PriceWatch");
 
     try {
         int priceLimit;
         int priceId=0;
+		std::string dateStamp;
+
         po::options_description desc ("Options");
         desc.add_options()
                 ("help", "produce help message")
@@ -31,6 +38,8 @@ int main(int argv, char **args) {
                 ("fetch-price-limit", po::value<int>(&priceLimit)->default_value(100), "don't fetch products with price tag lower than this value")
                 ("fetch-product-details", "fetch product details and update in database ")
                 ("fetch-product-price", po::value<int>(&priceId), "fetch product price and add to database with current date")
+				("generate-prices", po::value<std::string>(&dateStamp), "generate new empty price list for specified date (ex.2015-11-20)")
+				("fetch-prices", "daemon mode to fech unfetched prices")
                 ;
 
         po::variables_map vm;
@@ -42,41 +51,55 @@ int main(int argv, char **args) {
             return 0;
         }
         if (vm.count("list-sites")) {
-            cout << "available sites: " << "emag.ro" << "\n";
+            BOOST_LOG_TRIVIAL(info) << "available sites: " << "emag.ro" << "\n";
             return 0;
         }
 
         if (vm.count("fetch-product-price")) {
-            QTimer::singleShot(2000, [&] {
+//            QTimer::singleShot(2000, [&] {
                 if (priceId==0) {
-                    cout << "no price id defined";
+                    BOOST_LOG_TRIVIAL(error) << "no price id defined";
                     return 1;
                 }
-                EMagMarket marketEMag;
+                EMagMarket marketEMag{};
                 if (marketEMag.fetchProductPrice(priceId) == Collect::OK) {
-                    cout << "successfully finished fetching product price...." << "\n";
+                    BOOST_LOG_TRIVIAL(info) << "successfully finished fetching product price...." << "\n";
                     marketEMag.deleteLater();
-                    app.quit();
+					return 0;
                 } else {
-                    cout << "failed fetching product price.." << "\n";
+                    BOOST_LOG_TRIVIAL(error) << "failed fetching product price.." << "\n";
                     marketEMag.deleteLater();
-                    app.quit();
+					return 1;
                 }
-            });
-
-            return app.exec();
+//            });
         }
 
+		if (vm.count("generate-prices")) {
+			EMagMarket marketEMag;
+
+			if (dateStamp=="") {
+				BOOST_LOG_TRIVIAL(error) << "no timestamp specified";
+				return 1;
+			}
+			if (marketEMag.generatePricesForTimestamp(dateStamp)==TaskResult::Completed) {
+				 BOOST_LOG_TRIVIAL(info) << "successfully generated prices for timestamp: " << dateStamp;
+				 return 0;
+			} else {
+				 BOOST_LOG_TRIVIAL(error) << "failed to generated prices for timestamp: " << dateStamp;
+				 return 1;
+			}
+		}
+
         string selectedSite;
-        if (vm.count("site")) {
+		if (vm.count("site")) {
             selectedSite = vm["site"].as<std::string>();
         }  else {
-            cout<< "no site selected for operation. please select one (--list sites)" << "\n";
+            BOOST_LOG_TRIVIAL(error)<< "no site selected for operation. please select one (--list sites)" << "\n";
             return 1;
         }
 
         if (!selectedSite.empty() && std::find(sitesAvailable.begin(), sitesAvailable.end(), selectedSite) == sitesAvailable.end()) {
-            cout << "selected site not in available sites list" << "\n";
+            BOOST_LOG_TRIVIAL(error) << "selected site not in available sites list" << "\n";
             return 1;
         }
 
@@ -84,17 +107,13 @@ int main(int argv, char **args) {
             QTimer::singleShot(2000, [&] {
                EMagMarket marketEMag;
                 if (marketEMag.fetchCategories() == Collect::OK) {
-                    cout << "successfully finished fetching categories...." << "\n";
+                    BOOST_LOG_TRIVIAL(info) << "successfully finished fetching categories...." << "\n";
                     marketEMag.deleteLater();
-                    app.quit();
                 } else {
-                    cout << "failed fetching categories.." << "\n";
+                    BOOST_LOG_TRIVIAL(error) << "failed fetching categories.." << "\n";
                     marketEMag.deleteLater();
-                    app.quit();
                 }
             });
-
-            return app.exec();
         }
 
         if (vm.count("fetch-products")) {
@@ -103,23 +122,24 @@ int main(int argv, char **args) {
                 marketEMag.setPriceLimit(priceLimit);
 
                 if (marketEMag.fetchProducts() == Collect::OK) {
-                    cout << "successfully finished fetching products...." << "\n";
+                    BOOST_LOG_TRIVIAL(info) << "successfully finished fetching products...." << "\n";
                     marketEMag.deleteLater();
-                    app.quit();
+					return 0;
                 } else {
-                    cout << "failed fetching products.." << "\n";
+                    BOOST_LOG_TRIVIAL(error) << "failed fetching products.." << "\n";
                     marketEMag.deleteLater();
-                    app.quit();
+					return 1;
                 }
             });
-
-            return app.exec();
         }
+
+
+        app.exec();
     }
     catch (exception &e) {
         cout << e.what() << "\n";
     }
 
-    cout << "no argument specified: use --help for details" << "\n";
+    BOOST_LOG_TRIVIAL(error) << "no argument specified: use --help for details" << "\n";
     return  0;
 }

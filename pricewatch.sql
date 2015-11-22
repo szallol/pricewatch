@@ -32,15 +32,15 @@ CREATE TABLE IF NOT EXISTS `categories` (
 
 -- Dumping structure for table pricewatch.prices
 CREATE TABLE IF NOT EXISTS `prices` (
-  `id` int(10) unsigned NOT NULL,
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `product_id` int(10) unsigned NOT NULL,
   `timestamp_id` int(10) unsigned NOT NULL,
-  `price` float unsigned NOT NULL,
+  `price` float unsigned DEFAULT NULL,
   KEY `id` (`id`),
   KEY `FK__products` (`product_id`),
   KEY `FK__timestamps` (`timestamp_id`),
-  CONSTRAINT `FK__timestamps` FOREIGN KEY (`timestamp_id`) REFERENCES `timestamps` (`id`),
-  CONSTRAINT `FK_prices_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+  CONSTRAINT `FK_prices_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `FK_prices_timestamps` FOREIGN KEY (`timestamp_id`) REFERENCES `timestamps` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- Data exporting was unselected.
@@ -51,11 +51,12 @@ CREATE TABLE IF NOT EXISTS `productdetails` (
   `id` int(11) unsigned NOT NULL,
   `identifier` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL,
   `title` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
-  `url` varchar(1024) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `url` varchar(300) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
   `description` mediumtext CHARACTER SET utf8 COLLATE utf8_unicode_ci,
   `specs` mediumtext CHARACTER SET utf8 COLLATE utf8_unicode_ci,
   `picture` mediumtext CHARACTER SET utf8 COLLATE utf8_unicode_ci,
   UNIQUE KEY `id_unique` (`id`),
+  UNIQUE KEY `url` (`url`),
   KEY `id_key` (`id`),
   FULLTEXT KEY `identifier_title_url_description_specs` (`title`,`url`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
@@ -68,6 +69,7 @@ CREATE TABLE IF NOT EXISTS `products` (
   `id` int(11) unsigned NOT NULL,
   `shop_id` int(10) unsigned NOT NULL,
   `cat_id` int(10) unsigned NOT NULL,
+  `last_update` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY `id_unique` (`id`),
   KEY `FK_products_shops` (`shop_id`),
   KEY `FK_products_categories` (`cat_id`),
@@ -92,9 +94,9 @@ CREATE TABLE IF NOT EXISTS `shops` (
 
 -- Dumping structure for table pricewatch.timestamps
 CREATE TABLE IF NOT EXISTS `timestamps` (
-  `id` int(10) unsigned NOT NULL,
-  `timedate` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `dayofweek` varchar(50) COLLATE utf8_unicode_ci NOT NULL,
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `timedate` date NOT NULL,
+  `dayofweek` varchar(50) COLLATE utf8_unicode_ci DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 

@@ -1,0 +1,14 @@
+-IC:/Qt/Qt5.5.1/5.5/mingw492_32/include
+-IC:/Qt/Qt5.5.1/5.5/mingw492_32/include/QtWidgets
+-IC:/Qt/Qt5.5.1/5.5/mingw492_32/include/QtGui
+-IC:/Qt/Qt5.5.1/5.5/mingw492_32/include/QtCore
+-IC:/Qt/Qt5.5.1/5.5/mingw492_32/./mkspecs/win32-g++
+-IC:/Users/szall/Desktop/pricewatch
+-IC:/Users/szall/Desktop/pricewatch
+-DQT_WIDGETS_LIB
+-DQT_GUI_LIB
+-DQT_CORE_LIB
+-DWIN32
+-o
+C:/Users/szall/Desktop/pricewatch/main.moc
+C:/Users/szall/Desktop/pricewatch/main.cpp

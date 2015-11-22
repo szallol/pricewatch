@@ -1,4 +1,5 @@
-//
+#pragma clang diagnostic ignored "-Wignored-attributes"
+
 //
 // Created by szall on 10/23/2015.
 //
@@ -10,20 +11,24 @@
 #include "EMagWebPage.hpp"
 #include "EMagMarket.hpp"
 
-#include <string>
 #include <thread>
+#include <iostream>
 
 
-EMagMarket::EMagMarket() {
-    db = QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("pricewatch");
-    db.setUserName("root");
-    bool ok = db.open();
-    if (!ok) {
-        qDebug() << "connecting to database failed: " << db.lastError().text();
-        return;
+EMagMarket::EMagMarket() : WebMarket()  {
+    QSqlQuery q;
+    q.prepare("SELECT id FROM shops WHERE name = 'emag.ro'");
+
+    if (!q.exec()){
+        BOOST_LOG_TRIVIAL(error) << "\tfailed to fetch shop id " << q.lastError().text().toStdString();
     }
+
+    if(!q.first()) {
+        BOOST_LOG_TRIVIAL(error) << "\tfailed to fetch shop id " << q.lastError().text().toStdString();
+    } else {
+        marketId = q.value(0).toInt(); // add 1 to incrase to next available id
+    }
+    BOOST_LOG_TRIVIAL(info) << "found market id: " << marketId;
 }
 
 Collect EMagMarket::fetchProducts() {
@@ -32,19 +37,19 @@ Collect EMagMarket::fetchProducts() {
     }
 //    EMagWebPage pageEMag;
     int catCounter=1;
-    std::vector<ProductCategory> subcategories;
-    std::copy(std::find_if(categories.begin(), categories.end(), [](const ProductCategory elem) {return elem.getName()=="Imbracaminte copii";}) , categories.end(), std::back_inserter(subcategories));
+	std::vector<ProductCategory> subcategories;
+	std::copy(std::find_if(categories.begin(), categories.end(), [](const ProductCategory elem) {return elem.getId()==408;}) , categories.end(), std::back_inserter(subcategories));
 //    for (auto elem: categories) {
 //        qDebug () << QString::fromStdString(elem.getName());
 //    }
 //    return Collect::OK;
     for (auto &category : subcategories) {
-        qDebug() << "fetching products from category(" << QString::number(catCounter) << " of " << QString::number(subcategories.size()) << ") : " << QString::fromStdString(category.getName()) << ", " << QString::fromStdString(category.getCategoryUrl());
+        BOOST_LOG_TRIVIAL(info) << "fetching products from category(" << catCounter << " of " << subcategories.size() << ") : " << category.getName() << ", " << category.getCategoryUrl();
 
         if (fetchProductsFromCategory(category)!=Collect::OK) {
             return Collect::Failed;
         }
-        qDebug() << "----------------------------------------------------";
+        BOOST_LOG_TRIVIAL(info) << "----------------------------------------------------";
         catCounter++;
     }
 
@@ -53,16 +58,16 @@ Collect EMagMarket::fetchProducts() {
 
 Collect EMagMarket::fetchProductsFromCategory(ProductCategory &category) {
     if (category.getId() == 0) {
-        qDebug() << "category: " << QString::fromStdString(category.getName()) << " id not found. trying to fetch from Db.";
+        BOOST_LOG_TRIVIAL(info) << "category: " << category.getName() << " id not found. trying to fetch from Db.";
         QSqlQuery q;
 
         q.prepare("SELECT id, title, url FROM categories WHERE shop_id=1 AND title=\"" +QString::fromStdString(category.getName())+"\"");
 
         if (!q.exec()){
-            qDebug () << "\tfailed to fetch category. " << q.lastError().text();
+            BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch category. " << q.lastError().text().toStdString();
             return Collect::Failed;
         }
-
+ 
         bool found = false;
         while (q.next()) {
             found=true;
@@ -70,13 +75,15 @@ Collect EMagMarket::fetchProductsFromCategory(ProductCategory &category) {
             category.setId(catId);
         }
         if (!found) {
-            qDebug () << "something wrong with category: " << QString::fromStdString(category.getName());
+            BOOST_LOG_TRIVIAL (error) << "something wrong with category: " << category.getName();
             return  Collect::Failed;
         }
     }
     EMagWebPage pageEMag;
 
+	pageEMag.load("http://m.emag.ro/fullversion");
     pageEMag.load(category.getCategoryUrl());
+//    pageEMag.show();
 
     QWebElementCollection listProducts;
     ClickElementResult nextPageResult;
@@ -88,17 +95,23 @@ Collect EMagMarket::fetchProductsFromCategory(ProductCategory &category) {
 //        qDebug() << QString::fromStdString(pageEMag.getContentText());
         }
 
-        pageEMag.waitSeconds(3);
+        waitSeconds(3);
 
         listProducts = pageEMag.mainFrame()->findAllElements("div.product-holder-grid"); //("div.poza-produs > a");
 
-        foreach (auto elementProduct, listProducts) {
+        foreach (QWebElement elementProduct, listProducts) {
                 std::string strProductTitle = elementProduct.findFirst("div.poza-produs > a").attribute("title").remove('"').toStdString();
                 std::string strProductUrl = "http://www.emag.ro" + elementProduct.findFirst("div.poza-produs > a").attribute("href").toStdString();
                 int intProductPrice = elementProduct.findFirst("span.price-over > span.money-int").toInnerXml().trimmed().remove('.').toInt();
 
                 if (getPriceLimit() > intProductPrice) continue;
 
+                QWebElement sellerMarket = elementProduct.findFirst("form > div#pret2 > div.top > span.feedback-right-msg");
+                if (!sellerMarket.isNull()) {
+                    if (sellerMarket.toPlainText().toStdString().find("Vandut de eMAG") == std::string::npos) {
+                        continue; // not matching with current market
+                    }
+                }
                 bool containsSkipWord = false;
                 for (auto strWord: skipWordsProduct) {
                     if (strProductUrl.find(strWord) != std::string::npos) containsSkipWord=true;
@@ -111,7 +124,7 @@ Collect EMagMarket::fetchProductsFromCategory(ProductCategory &category) {
                 }
         }
 
-        qDebug() << "\tfound : "<< QString::number(prodCounter)<< " products on page: "<< pageEMag.mainFrame()->url();
+        BOOST_LOG_TRIVIAL(info) << "\tfound : "<< prodCounter << " products on page: "<< pageEMag.mainFrame()->url().toString().toStdString();
 //        pageEMag.savePageImage("c:/tmp/ll/pricewatch_lastscreen.jpg");
         nextPageResult = clickProductListNextPage(pageEMag);
     } while (nextPageResult == ClickElementResult::Clicked);
@@ -127,11 +140,11 @@ ClickElementResult EMagMarket::clickProductListNextPage(EMagWebPage &page) {
 
     if (!nextPage.isNull()) {
         if (nextPage.classes().contains("emg-pagination-disabled")) {
-            qDebug() << "\tnext page button found but disabled";
+            BOOST_LOG_TRIVIAL(info) << "\tnext page button found but disabled";
             return  ClickElementResult::Disabled;
             }
         else {
-            qDebug() << "\tnext page button found";
+            BOOST_LOG_TRIVIAL(info) << "\tnext page button found";
             page.mainFrame()->evaluateJavaScript("$('span.icon-i44-go-right').click();null;");
             return ClickElementResult::Clicked;
         }
@@ -147,11 +160,10 @@ Collect EMagMarket::fetchCategories() {
     if (pageEMag.waitUntilContains("Dante International", 5000) == Wait::OK) {
 //        qDebug() << QString::fromStdString(pageEMag.getContentText());
     }
-    pageEMag.waitSeconds(2);
+    waitSeconds(2);
 
     QWebElementCollection menuProductsCategory;
     menuProductsCategory = pageEMag.mainFrame()->findAllElements("a.emg-megamenu-link");
-
 
     foreach (auto elementMenu, menuProductsCategory) {
         std::string strCategoryName = elementMenu.toInnerXml().trimmed().remove('"').toStdString();
@@ -175,90 +187,6 @@ Collect EMagMarket::fetchCategories() {
     return Collect::OK;
 }
 
-TaskResult EMagMarket::addProductsToDb(std::vector<MarketProduct> &products) {
-    QSqlQuery q;
-    std::vector<MarketProduct> dbProducts;
-
-    // fetch all existing products from db for later check
-    q.prepare("SELECT productdetails.id, products.cat_id, title, url, shop_id FROM productdetails LEFT JOIN products ON products.id=productdetails.id WHERE shop_id = 1 ");
-
-    if (!q.exec()){
-        qDebug () << "\tfailed to fetch products for check. " << q.lastError().text();
-        return TaskResult::Failed;
-    }
-
-    while (q.next()) {
-        int intProductId = q.value(0).toInt();
-        int intProductCatId = q.value(1).toInt();
-        std::string strProductTitle = q.value(2).toString().toStdString();
-        std::string strProductUrl = q.value(3).toString().toStdString();
-
-        dbProducts.push_back(MarketProduct(intProductId, intProductCatId, strProductTitle, strProductUrl));
-    }
-
-    // get last product index
-    q.prepare("SELECT id FROM products ORDER BY id DESC LIMIT 1");
-
-    if (!q.exec()){
-        qDebug () << "\tfailed to fetch product. " << q.lastError().text();
-        return TaskResult::Failed;
-    }
-
-    int lastIndex;
-    if(!q.first()) {
-        lastIndex=1;
-    } else {
-        lastIndex = q.value(0).toInt() + 1; // add 1 to incrase to next available id
-    }
-
-    for (auto product: products) {
-//        qDebug() << QString::fromStdString(product.getTitle()) << QString::fromStdString(product.getProductUrl());
-        if (!equalProductsAndDesctiptions()) {
-            qDebug() << "something wrong with products count (productCount != productDetailsCount)!";
-            qDebug () << QString::fromStdString(product.getTitle()) << " : " << QString::fromStdString(product.getProductUrl()) << " : " <<product.getCatId();
-            return TaskResult::Failed;
-        }
-        auto resultFind = std::find_if(dbProducts.begin(), dbProducts.end(), [&](const MarketProduct prod) {return prod.getProductUrl()==product.getProductUrl();});
-        if (resultFind != dbProducts.end()) { // product exist in db
-        } else {
-            if (product.getTitle().empty()) continue; // ship empty product names
-//            product.getTitle().replace("\"", "\\\""); //escape double quotes
-
-            // insert to details table
-            if (!q.prepare(QLatin1String("INSERT INTO productdetails (id, title, url) VALUES(?, ?, ?)"))) {
-                qDebug() << "failed to prepare productdetails ";
-                return TaskResult::Failed;
-            }
-
-            q.addBindValue(lastIndex);
-            q.addBindValue(QString::fromStdString(product.getTitle()));
-            q.addBindValue(QString::fromStdString(product.getProductUrl()));
-            if (!q.exec()) {
-                qDebug() << "addProductsToDb(productdetails) error: " << q.lastError().text() << product.getCatId();
-                continue; //jump to next product if something failes
-            }
-
-            //insert into products table
-            if (!q.prepare(QLatin1String("INSERT INTO products (id, shop_id, cat_id) VALUES(?, ?, ?)"))){
-                qDebug() << "failed to prepare productdetails ";
-                return TaskResult::Failed;
-            }
-
-            q.addBindValue(lastIndex);
-            q.addBindValue(1);
-            q.addBindValue(product.getCatId());
-            if (!q.exec()) {
-                qDebug() << "addProductsToDb(products) error: " << q.lastError().text() << product.getCatId();
-            }
-
-            dbProducts.push_back(MarketProduct(product.getCatId(), product.getTitle(), product.getProductUrl()));
-            lastIndex++;
-        }
-    }
-
-    return TaskResult::Completed;
-}
-
 TaskResult EMagMarket::addCategoriesToDb(std::vector<ProductCategory> &categories) {
     QSqlQuery q;
 
@@ -269,7 +197,7 @@ TaskResult EMagMarket::addCategoriesToDb(std::vector<ProductCategory> &categorie
         q.bindValue(":title", QString::fromStdString(category.getName()));
 
         if (!q.exec()){
-            qDebug () << "\tfailed to fetch category. " << q.lastError().text();
+            BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch category. " << q.lastError().text().toStdString();
             return TaskResult::Failed;
         }
 //        qDebug() << q.lastQuery() << q.executedQuery();
@@ -282,12 +210,12 @@ TaskResult EMagMarket::addCategoriesToDb(std::vector<ProductCategory> &categorie
 
             if (category.getName() == title && category.getCategoryUrl() != url) // category url changed
             {
-                qDebug() << "category url changed: " << QString::fromStdString(category.getName()) << ", from " << QString::fromStdString(url) << " -> " << QString::fromStdString(category.getCategoryUrl());
+                BOOST_LOG_TRIVIAL(info) << "category url changed: " << category.getName() << ", from " << url << " -> " << category.getCategoryUrl();
             }
         }
 
         if (!found){
-            qDebug() << "adding new category: " << QString::fromStdString(category.getName()) << QString::fromStdString(category.getCategoryUrl());
+            BOOST_LOG_TRIVIAL(info) << "adding new category: " << category.getName() << category.getCategoryUrl();
             if (!q.prepare(QLatin1String("insert into categories (shop_id, title, url) values(?, ?, ?)")))
                 return TaskResult::Failed;
 
@@ -295,7 +223,7 @@ TaskResult EMagMarket::addCategoriesToDb(std::vector<ProductCategory> &categorie
             q.addBindValue(QString::fromStdString(category.getName()));
             q.addBindValue(QString::fromStdString(category.getCategoryUrl()));
             if (!q.exec()) {
-                qDebug() << "addCategoriesToDb error: " << q.lastError().text();
+                BOOST_LOG_TRIVIAL(error) << "addCategoriesToDb error: " << q.lastError().text().toStdString();
             }
         }
     }
@@ -309,7 +237,7 @@ TaskResult EMagMarket::fetchCategoriesFromDb() {
     q.prepare("SELECT id, shop_id, title, url FROM categories");
 
     if (!q.exec()){
-        qDebug () << "\tfailed to fetch category. " << q.lastError().text();
+        BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch category. " << q.lastError().text().toStdString();
         return TaskResult::Failed;
     }
 //        qDebug() << q.lastQuery() << q.executedQuery();
@@ -326,58 +254,75 @@ TaskResult EMagMarket::fetchCategoriesFromDb() {
     }
 
     if (!found) {
-        qDebug () << "no category found in database. please fets/update categories.";
-        TaskResult::Failed;
+        BOOST_LOG_TRIVIAL (error) << "no category found in database. please fets/update categories.";
+        return TaskResult::Failed;
     }
     return TaskResult::Failed;
 }
 
-bool EMagMarket::equalProductsAndDesctiptions() {
-    QSqlQuery q;
-    int countProducts=0;
-
-    q.prepare("SELECT COUNT(*) FROM products");
-
-    if (!q.exec()){
-        qDebug () << "\tfailed to count products. " << q.lastError().text();
-        return false;
-    }
-
-    if(q.first()) {
-        countProducts = q.value(0).toInt();
-    }
-
-    int countProductDetails=0;
-
-    q.prepare("SELECT COUNT(*) FROM productdetails");
-
-    if (!q.exec()){
-        qDebug () << "\tfailed to count productdetails. " << q.lastError().text();
-        return false;
-    }
-
-    if(q.first()) {
-        countProductDetails= q.value(0).toInt();
-    }
-
-    return countProducts == countProductDetails;
-}
 
 Collect EMagMarket::fetchProductPrice(int priceId) {
+//    std::lock_guard<std::mutex> lock(dbMutex);
+
     QSqlQuery q;
     int productId=0;
 
     q.prepare("SELECT product_id FROM prices WHERE id="+QString::number(priceId));
 
     if (!q.exec()){
-        qDebug () << "\tfailed to fetch price" << q.lastError().text();
+        BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch price" << q.lastError().text().toStdString();
         return Collect::Failed;
     }
 
     if(q.first()) {
         productId = q.value(0).toInt();
+    } else {
+        BOOST_LOG_TRIVIAL(error) << "\tno price found witfh id: " << priceId;
+        return  Collect::Failed;
     }
 
-    qDebug() << "fetching product id: " << productId;
-    return Collect::Failed;
+    std::string productUrl;
+    q.prepare("SELECT url FROM productdetails WHERE id="+QString::number(productId));
+
+    if (!q.exec()){
+        BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch product url" << q.lastError().text().toStdString();
+        return Collect::Failed;
+    }
+
+    if(q.first()) {
+        productUrl = q.value(0).toString().toStdString();
+    }
+
+    if (productUrl.empty()) {
+        BOOST_LOG_TRIVIAL(error) << "found product with empty url, productId: " << productId;
+    }
+
+    EMagWebPage pageEMag;
+    pageEMag.show();
+    BOOST_LOG_TRIVIAL(info) << "loading product page: " << productUrl;
+
+    pageEMag.load(productUrl);
+    waitSeconds(5);
+
+    pageEMag.saveElementImage("form#addToCartForm", "/tmp/ll/product.jpg");
+//    pageEMag.saveElementImage("img.poza_produs", "/tmp/ll/product.jpg");
+
+    QWebElement spanPrice = pageEMag.mainFrame()->findFirstElement("div.prices > span");
+    if (spanPrice.isNull()) {
+        BOOST_LOG_TRIVIAL(error) << "can't find product price tag: " << productUrl ;
+        return Collect::Failed;
+    }
+
+    double productPrice = spanPrice.attribute("content").toDouble();
+    if (productPrice > 0 ) {
+        BOOST_LOG_TRIVIAL(info) << "product price: " << productPrice;
+
+        q.prepare(QString::fromStdString("UPDATE prices SET price=" + std::to_string(productPrice) + " WHERE id= " + std::to_string(priceId)));
+        if (!q.exec()){
+            BOOST_LOG_TRIVIAL (error) << "\tfailed to update product price" << q.lastError().text().toStdString();
+            return Collect::Failed;
+        }
+    }
+
+    return Collect::OK;
 }

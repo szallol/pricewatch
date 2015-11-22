@@ -6,28 +6,43 @@
 #define PROBA_CLION_MARKETWEBPAGE_HPP
 
 #include <QtWebKitWidgets/QWebPage>
+#include <QtWebKitWidgets/QWebView>
 
 #include <ProductCategory.hpp>
 
 #include <string>
 #include <vector>
+#include <QtWebKit/qwebelement.h>
+#include <QtCore/qeventloop.h>
+#include <QtWebKitWidgets/qwebframe.h>
 
 enum class Wait {OK, TIMEOUT};
 
 
-class MarketWebPage : public QWebPage{
+class MarketWebPage : public QWebView{
 Q_OBJECT
 public:
-    MarketWebPage(){};
+    MarketWebPage();
     void load(const std::string);
     void savePageImage(const std::string);
+    void saveElementImage(const std::string, const std::string);
 
     Wait waitUntilContains(std::string, int);
-    Wait waitSeconds(int);
+    Wait waitUnitlElementLoaded(std::string, int);
+
+    QWebElement findElement(std::string);
+
     std::string getContentText();
+
+    QWebFrame *mainFrame() { return this->page()->mainFrame();};
 
 protected:
     std::string strLoadedUrl;
+private:
+
+    QEventLoop evnFinishedLoading;
+private slots:
+    void finishedLoading(bool);
 
 };
 

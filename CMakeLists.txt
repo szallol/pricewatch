@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.3)
 project(pricewatch)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
+set(CMAKE_C_COMPILER "c:/Qt/Qt5.5.1/Tools/mingw492_32/bin/gcc.exe")
+set(CMAKE_CXX_COMPILER "c:/Qt/Qt5.5.1/Tools/mingw492_32/bin/g++.exe")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -march=i686")
 
 #enable_testing()
@@ -24,7 +27,7 @@ set(Boost_USE_STATIC_LIBS        ON)
 set(Boost_USE_MULTITHREADED      ON)
 set(Boost_USE_STATIC_RUNTIME    OFF)
 
-find_package(Boost REQUIRED  COMPONENTS system regex program_options)
+find_package(Boost REQUIRED  COMPONENTS log log_setup thread date_time filesystem system regex program_options)
 
 message(status "** Boost Include: ${Boost_INCLUDE_DIR}")
 message(status "** Boost Libraries: ${Boost_LIBRARY_DIRS}")
@@ -43,7 +46,7 @@ endif()
 
 set(CMAKE_AUTOMOC ON)
 find_package(Qt5Widgets)
-find_package(Qt5WebkitWidgets)
+find_package(Qt5WebKitWidgets)
 find_package(Qt5Sql)
 # Add the include directories for the Qt 5 Widgets module to
 # the compile lines.
@@ -59,11 +62,15 @@ qt5_generate_moc(main.cpp main.moc)
 
 #c:\Qt\Qt5.5.1\5.5\mingw492_32\lib\cmake
 
+get_property(inc_dirs DIRECTORY PROPERTY INCLUDE_DIRECTORIES) 
+
+message("include dirs: ${inc_dirs}")
+
 set(SOURCE_FILES main.cpp MarketWebPage.cpp MarketWebPage.hpp
         EMagWebPage.cpp EMagWebPage.hpp
         ProductCategory.cpp ProductCategory.hpp
         WebMarket.cpp WebMarket.hpp
-        EMagMarket.cpp EMagMarket.hpp MarketProduct.cpp MarketProduct.hpp)
+        EMagMarket.cpp EMagMarket.hpp MarketProduct.cpp MarketProduct.hpp AltexMarket.cpp AltexMarket.hpp)
 add_executable(pricewatch ${SOURCE_FILES})
 #target_link_libraries(pricewatch ${GTEST_BOTH_LIBRARIES${Boost_LIBRARIES} Qt5::Widgets Qt5::WebKitWidgets Qt5::Sql)
 target_link_libraries(pricewatch ${Boost_LIBRARIES} Qt5::Widgets Qt5::WebKitWidgets Qt5::Sql)

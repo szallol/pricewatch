@@ -1,0 +1,9 @@
+-I c:/boost_1_59_0
+-I C:/Qt/Qt5.5.1/5.5/mingw492_32/include
+-I C:/Qt/Qt5.5.1/5.5/mingw492_32/include/QtWidgets
+-I C:/Qt/Qt5.5.1/5.5/mingw492_32/include/QtGui
+-I C:/Qt/Qt5.5.1/5.5/mingw492_32/include/QtCore
+-I c:/Qt/Qt5.5.1\5.5\mingw492_32\include\QtSql 
+-I C:/Qt/Qt5.5.1/5.5/mingw492_32/./mkspecs/win32-g++
+-I c:/Qt/Qt5.5.1/Tools/mingw492_32/i686-w64-mingw32/include/c++ 
+-I c:/Qt/Qt5.5.1/Tools/mingw492_32/i686-w64-mingw32/include/c++/i686-w64-mingw32 

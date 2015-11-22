@@ -6,7 +6,9 @@
 #define PRICEWATCH_ALTEXMARKET_HPP
 
 
-class AltexMarket {
+#include "WebMarket.hpp"
+
+class AltexMarket  : public WebMarket{
 
 };
 
