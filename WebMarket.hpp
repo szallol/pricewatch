@@ -9,6 +9,7 @@
 #include <QDebug>
 #include <QtWebKitWidgets/QWebPage>
 #include <QtSql>
+#include <QProcess>
 
 #include <random>
 #include <mutex>
@@ -53,9 +54,11 @@ public:
     virtual Collect fetchProducts()=0;
     virtual Collect fetchProductsFromCategory(ProductCategory &)=0;
     virtual Collect fetchProductPrice(int)=0;
+    virtual Collect fetchProductPrice(MarketWebPage &, int)=0;
     bool equalProductsAndDescriptions();
     TaskResult addProductsToDb(std::vector<MarketProduct> &);
 	TaskResult generatePricesForTimestamp(std::string);
+	TaskResult fetchPrices();
 
     int getPriceLimit() const {
         return priceLimit;
@@ -64,6 +67,15 @@ public:
     void setPriceLimit(int priceLimit) {
         WebMarket::priceLimit = priceLimit;
     }
+
+	int getMaxProcess() const {
+		return maxProcess;
+	}
+
+	void setMaxParocess(int maxProc) {
+		WebMarket::maxProcess = maxProc;
+	}
+
     virtual int getMarketId() const=0;
 
     virtual void setMarketId(int marketId)=0;
@@ -71,6 +83,9 @@ public:
     Wait waitSeconds(int);
 private:
     std::vector<std::string> args;
+	int maxProcess;
+
+	int getRunningWorkers();
 
 protected:
     std::vector<ProductCategory> categories;

@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS `prices` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `product_id` int(10) unsigned NOT NULL,
   `timestamp_id` int(10) unsigned NOT NULL,
-  `price` float unsigned DEFAULT NULL,
+  `price` float DEFAULT '0',
   KEY `id` (`id`),
   KEY `FK__products` (`product_id`),
   KEY `FK__timestamps` (`timestamp_id`),

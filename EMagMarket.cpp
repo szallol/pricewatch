@@ -298,31 +298,132 @@ Collect EMagMarket::fetchProductPrice(int priceId) {
     }
 
     EMagWebPage pageEMag;
-    pageEMag.show();
     BOOST_LOG_TRIVIAL(info) << "loading product page: " << productUrl;
 
     pageEMag.load(productUrl);
+//	pageEMag.waitUntilContains("Dante International", 30000);
     waitSeconds(5);
+//	pageEMag.savePageImage("/tmp/ll/lasloaded_page.jpg");
 
-    pageEMag.saveElementImage("form#addToCartForm", "/tmp/ll/product.jpg");
+    pageEMag.saveElementImage("div#product-info", "/tmp/ll/product.jpg");
 //    pageEMag.saveElementImage("img.poza_produs", "/tmp/ll/product.jpg");
 
-    QWebElement spanPrice = pageEMag.mainFrame()->findFirstElement("div.prices > span");
-    if (spanPrice.isNull()) {
-        BOOST_LOG_TRIVIAL(error) << "can't find product price tag: " << productUrl ;
-        return Collect::Failed;
-    }
+	double productPrice=-1;
+	bool noMoreOffer=false;
 
-    double productPrice = spanPrice.attribute("content").toDouble();
-    if (productPrice > 0 ) {
-        BOOST_LOG_TRIVIAL(info) << "product price: " << productPrice;
+    QWebElement divNoMoreOffer = pageEMag.mainFrame()->findFirstElement("div#offer-price-stock-add");
+	if (!divNoMoreOffer.isNull() && divNoMoreOffer.toPlainText().contains("nu mai face parte din oferta")) {
+		BOOST_LOG_TRIVIAL(error) << "product no more available";
+		productPrice=-1;
+		noMoreOffer=true;
+	}
 
-        q.prepare(QString::fromStdString("UPDATE prices SET price=" + std::to_string(productPrice) + " WHERE id= " + std::to_string(priceId)));
-        if (!q.exec()){
-            BOOST_LOG_TRIVIAL (error) << "\tfailed to update product price" << q.lastError().text().toStdString();
-            return Collect::Failed;
-        }
-    }
+	if (!noMoreOffer) {
+		QWebElement spanPrice = pageEMag.mainFrame()->findFirstElement("div.prices > span");
+		if (spanPrice.isNull()) {
+			BOOST_LOG_TRIVIAL(info) << "can't find product price tag: " << productUrl ;
+			return Collect::Failed;
+		} else {
+			productPrice = spanPrice.attribute("content").toDouble();
+		}
+
+		if (productPrice > 0 ) {
+			BOOST_LOG_TRIVIAL(info) << "product price: " << productPrice;
+		}
+	}
+
+	q.prepare(QString::fromStdString("UPDATE prices SET price=" + std::to_string(productPrice) + " WHERE id= " + std::to_string(priceId)));
+	if (!q.exec()){
+		BOOST_LOG_TRIVIAL (error) << "\tfailed to update product price" << q.lastError().text().toStdString();
+		return Collect::Failed;
+	}
 
     return Collect::OK;
 }
+
+Collect EMagMarket::fetchProductPrice(MarketWebPage &pageEMag, int priceId) {
+	std::unique_lock<std::mutex> lock(fetchPriceMutex);
+
+    QSqlQuery q;
+    int productId=0;
+
+    q.prepare("SELECT product_id FROM prices WHERE id="+QString::number(priceId));
+
+    if (!q.exec()){
+        BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch price" << q.lastError().text().toStdString();
+        return Collect::Failed;
+    }
+
+    if(q.first()) {
+        productId = q.value(0).toInt();
+    } else {
+        BOOST_LOG_TRIVIAL(error) << "\tno price found witfh id: " << priceId;
+        return  Collect::Failed;
+    }
+
+    std::string productUrl;
+    q.prepare("SELECT url FROM productdetails WHERE id="+QString::number(productId));
+
+    if (!q.exec()){
+        BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch product url" << q.lastError().text().toStdString();
+        return Collect::Failed;
+    }
+
+    if(q.first()) {
+        productUrl = q.value(0).toString().toStdString();
+    }
+
+    if (productUrl.empty()) {
+        BOOST_LOG_TRIVIAL(error) << "found product with empty url, productId: " << productId;
+    }
+
+
+//    EMagWebPage pageEMag;
+    BOOST_LOG_TRIVIAL(info) << "loading product page: " << productUrl;
+
+    pageEMag.load(productUrl);
+//	pageEMag.waitUntilContains("Dante International", 30000);
+//    waitSeconds(5);
+//
+	lock.unlock();
+	std::this_thread::sleep_for(std::chrono::seconds(5));
+//	pageEMag.savePageImage("/tmp/ll/lasloaded_page.jpg");
+
+	lock.lock();
+//    pageEMag.saveElementImage("div#product-info", "/tmp/ll/product.jpg");
+//    pageEMag.saveElementImage("img.poza_produs", "/tmp/ll/product.jpg");
+
+	double productPrice=-1;
+	bool noMoreOffer=false;
+
+    QWebElement divNoMoreOffer = pageEMag.mainFrame()->findFirstElement("div#offer-price-stock-add");
+	if (!divNoMoreOffer.isNull() && divNoMoreOffer.toPlainText().contains("nu mai face parte din oferta")) {
+		BOOST_LOG_TRIVIAL(error) << "product no more available";
+		productPrice=-1;
+		noMoreOffer=true;
+	}
+
+	if (!noMoreOffer) {
+		QWebElement spanPrice = pageEMag.mainFrame()->findFirstElement("div.prices > span");
+		if (spanPrice.isNull()) {
+			BOOST_LOG_TRIVIAL(info) << "can't find product price tag: " << productUrl ;
+			return Collect::Failed;
+		} else {
+			productPrice = spanPrice.attribute("content").toDouble();
+		}
+
+		if (productPrice > 0 ) {
+			BOOST_LOG_TRIVIAL(info) << "product price: " << productPrice;
+		}
+	}
+
+
+	q.prepare(QString::fromStdString("UPDATE prices SET price=" + std::to_string(productPrice) + " WHERE id= " + std::to_string(priceId)));
+	if (!q.exec()){
+		BOOST_LOG_TRIVIAL (error) << "\tfailed to update product price" << q.lastError().text().toStdString();
+		return Collect::Failed;
+	}
+
+    return Collect::OK;
+}
+

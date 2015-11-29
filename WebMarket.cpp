@@ -5,8 +5,17 @@
 #include "WebMarket.hpp"
 
 #include <QtSql>
+#include <QProcess>
+#include <QNetworkAccessManager>
+
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/steady_timer.hpp>
+
+#include "EMagWebPage.hpp"
 
 #include <chrono>
+#include <deque>
+#include <thread>
 
 WebMarket::WebMarket() {
        BOOST_LOG_TRIVIAL(info) << "connecting to db";
@@ -27,22 +36,31 @@ WebMarket::WebMarket() {
 }
 
 Wait WebMarket::waitSeconds(int i) {
-    QEventLoop evFinishedWait;
-    QTimer bigTimeout;
+	using namespace boost::asio;
 
-    BOOST_LOG_TRIVIAL(info) << "\twaiting: " << i << " seconds";
-    std::chrono::time_point<std::chrono::system_clock> start_time = std::chrono::system_clock::now();
-    bigTimeout.singleShot(i * 1000, Qt::VeryCoarseTimer, &evFinishedWait, [&] {
-        std::chrono::time_point<std::chrono::system_clock> end_time = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end_time-start_time;
-//        BOOST_LOG_TRIVIAL(info) << "\twaited: " << elapsed_seconds.count();
-     if (bigTimeout.isActive())   bigTimeout.stop();
-      if (evFinishedWait.isRunning())  evFinishedWait.quit();
-    });
-//    QTimer::singleShot(i * 1000,  &evFinishedWait, SLOT(quit()));
+	io_service ioservice;
+	steady_timer timer{ioservice, std::chrono::seconds{i}};
+	timer.async_wait([i](const boost::system::error_code &ec)
+		{ BOOST_LOG_TRIVIAL (info) << "waiting "<< i << " sec done\n"; });
 
-    evFinishedWait.exec();
-
+	BOOST_LOG_TRIVIAL (info) << "waiting "<< i << " sec\n"; 
+	ioservice.run();
+//    QEventLoop evFinishedWait;
+//    QTimer bigTimeout;
+//
+//    BOOST_LOG_TRIVIAL(info) << "\twaiting: " << i << " seconds";
+//    std::chrono::time_point<std::chrono::system_clock> start_time = std::chrono::system_clock::now();
+//    bigTimeout.singleShot(i * 1000, Qt::VeryCoarseTimer, &evFinishedWait, [&] {
+//        std::chrono::time_point<std::chrono::system_clock> end_time = std::chrono::system_clock::now();
+//        std::chrono::duration<double> elapsed_seconds = end_time-start_time;
+////        BOOST_LOG_TRIVIAL(info) << "\twaited: " << elapsed_seconds.count();
+//     if (bigTimeout.isActive())   bigTimeout.stop();
+//      if (evFinishedWait.isRunning())  evFinishedWait.quit();
+//    });
+////    QTimer::singleShot(i * 1000,  &evFinishedWait, SLOT(quit()));
+//
+//    evFinishedWait.exec();
+//
 //    BOOST_LOG_TRIVIAL(info) << "\twaitSeconds finish";
     return Wait::OK;
 }
@@ -197,10 +215,85 @@ TaskResult WebMarket::generatePricesForTimestamp(std::string timestamp) {
 		return TaskResult::Failed;
 	} 
 
-	q.prepare("INSERT into prices (product_id, timestamp_id) SELECT id, 1 FROM products");
+	q.prepare("INSERT into prices (product_id, timestamp_id) SELECT id, 1 FROM products WHERE shop_id=" + QString::number(getMarketId()));
 	if (!q.exec()) {
 		BOOST_LOG_TRIVIAL(error) << "failed to generate prices for timestamp: " << timestamp;
 		return TaskResult::Failed;
 	}
 	return TaskResult::Completed;
+}
+
+TaskResult WebMarket::fetchPrices() {
+	QSqlQuery q;
+	BOOST_LOG_TRIVIAL(info) << "running " << getMaxProcess() << " processes";
+
+	bool morePricesToFetch = true; // is there more price to fetch
+
+	while (morePricesToFetch) {
+		// try to get next unprocessed priceid
+		q.prepare("SELECT id FROM prices WHERE price=0 LIMIT 1");
+
+		if(!q.exec()) {
+			BOOST_LOG_TRIVIAL(error) << "failed to get available prices from db";
+			return TaskResult::Failed;
+		} 
+		
+		int nextPriceId=0;
+		if (q.first()) {
+			nextPriceId=q.value(0).toInt();
+		} else {
+			morePricesToFetch=false;
+			continue;
+		}
+
+		// mark priceid with -1 price value to skip on next request
+		q.prepare("UPDATE prices SET price=-1 WHERE id=" + QString::number(nextPriceId));
+
+		if(!q.exec()) {
+			BOOST_LOG_TRIVIAL(error) << "failed to get available prices from db";
+			return TaskResult::Failed;
+		} 
+
+		BOOST_LOG_TRIVIAL(info) << "find unprocessed priceid:" << nextPriceId;
+
+		while (getRunningWorkers() > getMaxProcess()) {
+			std::this_thread::sleep_for(std::chrono::seconds(5));
+		}
+
+		QStringList arguments;
+		arguments.append("--fetch-product-price");
+		arguments.append(QString::number(nextPriceId));
+
+		QProcess *tmpProc = new QProcess(); 
+
+		tmpProc->setWorkingDirectory(qApp->applicationDirPath());
+		tmpProc->setProcessChannelMode(QProcess::MergedChannels);
+		if (!tmpProc->startDetached("pricewatch.exe", arguments)) {
+			BOOST_LOG_TRIVIAL(error) << tmpProc->errorString().toStdString();
+			BOOST_LOG_TRIVIAL(info) << tmpProc->readAll().toStdString();
+		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+	} 
+	return TaskResult::Failed;
+}
+
+int WebMarket::getRunningWorkers() {
+    QProcess process;
+    process.setReadChannel(QProcess::StandardOutput);
+    process.setReadChannelMode(QProcess::MergedChannels);
+
+    process.start(tr("tasklist /FI \"IMAGENAME eq pricewatch*\" /FO CSV  /NH"));
+
+    process.waitForStarted(1000);
+    process.waitForFinished(1000);
+    process.waitForReadyRead(2000);
+
+    QString std_out = QString(process.readAllStandardOutput());
+
+    QStringList out_lines = std_out.split("\n", QString::SkipEmptyParts);
+    int count = out_lines.filter("pricewatch.exe").count();
+
+    if (count>-1) return count;
+    return -1;
 }

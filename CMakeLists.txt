@@ -5,7 +5,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 set(CMAKE_C_COMPILER "c:/Qt/Qt5.5.1/Tools/mingw492_32/bin/gcc.exe")
 set(CMAKE_CXX_COMPILER "c:/Qt/Qt5.5.1/Tools/mingw492_32/bin/g++.exe")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -march=i686")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -march=i686 ")
 
 #enable_testing()
 #set(GTEST_INCLUDE_DIR "c:/googletest-master/googletest/include")
@@ -48,6 +48,7 @@ set(CMAKE_AUTOMOC ON)
 find_package(Qt5Widgets)
 find_package(Qt5WebKitWidgets)
 find_package(Qt5Sql)
+find_package(Qt5Network)
 # Add the include directories for the Qt 5 Widgets module to
 # the compile lines.
 include_directories(${Qt5Widgets_INCLUDE_DIRS})
@@ -73,4 +74,7 @@ set(SOURCE_FILES main.cpp MarketWebPage.cpp MarketWebPage.hpp
         EMagMarket.cpp EMagMarket.hpp MarketProduct.cpp MarketProduct.hpp AltexMarket.cpp AltexMarket.hpp)
 add_executable(pricewatch ${SOURCE_FILES})
 #target_link_libraries(pricewatch ${GTEST_BOTH_LIBRARIES${Boost_LIBRARIES} Qt5::Widgets Qt5::WebKitWidgets Qt5::Sql)
-target_link_libraries(pricewatch ${Boost_LIBRARIES} Qt5::Widgets Qt5::WebKitWidgets Qt5::Sql)
+
+IF(WIN32)
+ENDIF()
+target_link_libraries(pricewatch ${Boost_LIBRARIES} Qt5::Widgets Qt5::WebKitWidgets Qt5::Sql Qt5::Network ws2_32)

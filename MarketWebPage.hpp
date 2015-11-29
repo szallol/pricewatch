@@ -1,3 +1,4 @@
+#pragma clang diagnostic ignored "-Wignored-attributes"
 //
 // Created by szall on 10/22/2015.
 //
@@ -19,7 +20,7 @@
 enum class Wait {OK, TIMEOUT};
 
 
-class MarketWebPage : public QWebView{
+class MarketWebPage : public QWebPage {
 Q_OBJECT
 public:
     MarketWebPage();
@@ -34,9 +35,14 @@ public:
 
     std::string getContentText();
 
-    QWebFrame *mainFrame() { return this->page()->mainFrame();};
+//    QWebFrame *mainFrame() { return mainFrame();};
 
 protected:
+	QString userAgentForUrl(const QUrl& ) const;	
+    void javaScriptConsoleMessage(const QString& message, int lineNumber, const QString& sourceID);
+//    bool javaScriptPrompt(QWebFrame* frame, const QString& msg, const QString& defaultValue, QString* result);
+    void javaScriptAlert(QWebFrame* frame, const QString& msg);
+    bool javaScriptConfirm(QWebFrame* frame, const QString& msg);
     std::string strLoadedUrl;
 private:
 

@@ -4,6 +4,7 @@
 -I C:/Qt/Qt5.5.1/5.5/mingw492_32/include/QtGui
 -I C:/Qt/Qt5.5.1/5.5/mingw492_32/include/QtCore
 -I c:/Qt/Qt5.5.1\5.5\mingw492_32\include\QtSql 
+-I c:/Qt/Qt5.5.1\5.5\mingw492_32\include\QtNetwork 
 -I C:/Qt/Qt5.5.1/5.5/mingw492_32/./mkspecs/win32-g++
 -I c:/Qt/Qt5.5.1/Tools/mingw492_32/i686-w64-mingw32/include/c++ 
 -I c:/Qt/Qt5.5.1/Tools/mingw492_32/i686-w64-mingw32/include/c++/i686-w64-mingw32 

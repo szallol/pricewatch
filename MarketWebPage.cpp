@@ -8,6 +8,7 @@
 #include <Qtimer>
 #include <QImage>
 #include <QPainter>
+#include <QUrl>
 #include <QtWebKitWidgets/QWebFrame>
 #include <QtWebKit/QWebElement>
 
@@ -19,6 +20,22 @@
 #include <QtGui/qpainter.h>
 
 
+void MarketWebPage::javaScriptConsoleMessage(const QString &message, int lineNumber, const QString &sourceID)
+{
+//	BOOST_LOG_TRIVIAL(info) << "javascript console: " << message.toStdString();
+}
+
+void MarketWebPage::javaScriptAlert(QWebFrame *originatingFrame, const QString &msg) {
+	BOOST_LOG_TRIVIAL(info) << "[alert] " << msg.toStdString();
+}
+
+bool MarketWebPage::javaScriptConfirm(QWebFrame *frame, const QString &msg) {
+	return true;
+}
+
+QString MarketWebPage::userAgentForUrl(const QUrl &url) const {
+	return "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.86 Safari/537.36";
+}
 
 Wait MarketWebPage::waitUntilContains(std::string content, int timeout) {
     QEventLoop evFinishedLoading;
@@ -27,6 +44,7 @@ Wait MarketWebPage::waitUntilContains(std::string content, int timeout) {
 
     bigTimeout.singleShot(timeout, Qt::VeryCoarseTimer,&evFinishedLoading, [&] {
         BOOST_LOG_TRIVIAL(info) << "\twaitUntilContains: "<< mainFrame()->url().toString().toStdString()<< " timed out(" << timeout <<" msec)";
+		
         evFinishedLoading.exit(1); //exit with return code 1
     });
 
@@ -45,6 +63,7 @@ Wait MarketWebPage::waitUntilContains(std::string content, int timeout) {
     }
 
     return Wait::OK;
+
 }
 
 Wait MarketWebPage::waitUnitlElementLoaded(std::string elementPath, int timeout) {
@@ -86,7 +105,7 @@ std::string MarketWebPage::getContentText() {
 
 
 void MarketWebPage::savePageImage(const std::string fileName) {
-    page()->setViewportSize(mainFrame()->contentsSize());
+    setViewportSize(mainFrame()->contentsSize());
     QImage image(mainFrame()->geometry().size(), QImage::Format_ARGB32_Premultiplied);
     //image.fill(Qt::t);
 

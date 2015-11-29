@@ -29,6 +29,7 @@ public:
     virtual Collect fetchProducts() override;
     virtual Collect fetchProductsFromCategory(ProductCategory &) override;
     virtual Collect fetchProductPrice(int) override;
+    virtual Collect fetchProductPrice(MarketWebPage &,int) override;
 
     virtual int getMarketId() const override {return marketId;} ;
     virtual void setMarketId(int intMarketId) override {marketId=intMarketId;};
@@ -41,6 +42,7 @@ private:
     TaskResult addCategoriesToDb (std::vector<ProductCategory> &);
 
     int marketId;
+	std::mutex fetchPriceMutex;
 };
 
 
