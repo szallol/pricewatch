@@ -40,9 +40,8 @@ if (Boost_FOUND)
                 message("Found Boost components:")
                 message("   ${Boost_FIND_COMPONENTS}")
         endif()
-
-
 endif()
+
 
 set(CMAKE_AUTOMOC ON)
 find_package(Qt5Widgets)
@@ -60,8 +59,6 @@ add_definitions(${Qt5Widgets_DEFINITIONS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
 
 qt5_generate_moc(main.cpp main.moc)
-
-#c:\Qt\Qt5.5.1\5.5\mingw492_32\lib\cmake
 
 get_property(inc_dirs DIRECTORY PROPERTY INCLUDE_DIRECTORIES) 
 

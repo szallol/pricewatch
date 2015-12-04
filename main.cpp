@@ -31,7 +31,6 @@ int main(int argv, char **args) {
 
         po::options_description desc ("Options");
         desc.add_options()
-                ("help", "produce help message")
                 ("list-sites", "list available sites")
                 ("site", po::value<std::string>(), "select working site(ex. emag.ro)")
                 ("fetch-categories", "fetch categories from sitle and update in database")
@@ -41,6 +40,7 @@ int main(int argv, char **args) {
                 ("fetch-product-price", po::value<int>(&priceId), "fetch product price and add to database with current date")
 				("generate-prices", po::value<std::string>(&dateStamp), "generate new empty price list for specified date (ex.2015-11-20)")
 				("fetch-prices", po::value<int>(&maxProcess)->default_value(10), "daemon mode to update unfetched prices (arg-> max process number, default=10)")
+                ("help", "produce help message")
                 ;
 
         po::variables_map vm;

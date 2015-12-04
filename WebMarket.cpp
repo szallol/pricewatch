@@ -273,7 +273,7 @@ TaskResult WebMarket::fetchPrices() {
 			BOOST_LOG_TRIVIAL(info) << tmpProc->readAll().toStdString();
 		}
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	} 
 	return TaskResult::Failed;
 }
