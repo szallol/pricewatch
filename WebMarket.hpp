@@ -53,12 +53,14 @@ public:
     virtual Collect fetchCategories()=0;
     virtual Collect fetchProducts()=0;
     virtual Collect fetchProductsFromCategory(ProductCategory &)=0;
-    virtual Collect fetchProductPrice(int)=0;
-    virtual Collect fetchProductPrice(MarketWebPage &, int)=0;
+    virtual Collect fetchIndividualProductPrice(int)=0;
+//    virtual Collect fetchProductPrice(MarketWebPage &, int)=0;
     bool equalProductsAndDescriptions();
     TaskResult addProductsToDb(std::vector<MarketProduct> &);
+    TaskResult addCategoriesToDb (std::vector<ProductCategory> &);
 	TaskResult generatePricesForTimestamp(std::string);
-	TaskResult fetchPrices();
+	TaskResult fetchPrices(); // fetch prices with indivdual method
+	virtual TaskResult fetchPricesBulk()=0; // fetch prices with category list method
 
     int getPriceLimit() const {
         return priceLimit;
@@ -88,6 +90,7 @@ private:
 	int getRunningWorkers();
 
 protected:
+    TaskResult fetchCategoriesFromDb();
     std::vector<ProductCategory> categories;
     int priceLimit;
     QSqlDatabase db;

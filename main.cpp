@@ -23,6 +23,11 @@ int main(int argv, char **args) {
     QApplication app(argv, args);
     app.setApplicationName("PriceWatch");
 
+//	boost::asio::io_service io_service;
+//    pinger p(io_service, "yahoo.com");
+//    io_service.run();
+
+
     try {
         int priceLimit;
         int priceId=0;
@@ -39,7 +44,8 @@ int main(int argv, char **args) {
                 ("fetch-product-details", "fetch product details and update in database ")
                 ("fetch-product-price", po::value<int>(&priceId), "fetch product price and add to database with current date")
 				("generate-prices", po::value<std::string>(&dateStamp), "generate new empty price list for specified date (ex.2015-11-20)")
-				("fetch-prices", po::value<int>(&maxProcess)->default_value(10), "daemon mode to update unfetched prices (arg-> max process number, default=10)")
+				("max-workers", po::value<int>(&maxProcess)->default_value(10), "in daemon mode max workers (arg-> max process number, default=10)")
+				("fetch-prices", "update unfetched prices")
                 ("help", "produce help message")
                 ;
 
@@ -47,7 +53,7 @@ int main(int argv, char **args) {
         po::store(po::parse_command_line(argv, args, desc), vm);
         po::notify(vm);
 
-        if (vm.count("help")) {
+        if (vm.count("help") || vm.size() <=2 ) {
             cout << desc << "\n";
             return 0;
         }
@@ -64,7 +70,7 @@ int main(int argv, char **args) {
                 }
                 EMagMarket marketEMag{};
 
-                if (marketEMag.fetchProductPrice(priceId) == Collect::OK) {
+                if (marketEMag.fetchIndividualProductPrice(priceId) == Collect::OK) {
                     BOOST_LOG_TRIVIAL(info) << "successfully finished fetching product price...." << "\n";
                     marketEMag.deleteLater();
 					return 0;
@@ -97,7 +103,7 @@ int main(int argv, char **args) {
 
 			marketEMag.setMaxParocess(maxProcess);
 
-			if (marketEMag.fetchPrices() != TaskResult::Completed) {
+			if (marketEMag.fetchPricesBulk() != TaskResult::Completed) {
 				 BOOST_LOG_TRIVIAL(info) << "successfully fetched prices" << dateStamp;
 				 return 0;
 			} else {

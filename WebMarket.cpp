@@ -96,6 +96,50 @@ bool WebMarket::equalProductsAndDescriptions() {
     return countProducts == countProductDetails;
 }
 
+TaskResult WebMarket::addCategoriesToDb(std::vector<ProductCategory> &categories) {
+    QSqlQuery q;
+
+    for (auto category: categories) {
+        //check if category already in db
+        bool found = false;
+        q.prepare("SELECT shop_id, title, url FROM categories WHERE shop_id=1 AND title=\"" +QString::fromStdString(category.getName())+"\"");
+        q.bindValue(":title", QString::fromStdString(category.getName()));
+
+        if (!q.exec()){
+            BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch category. " << q.lastError().text().toStdString();
+            return TaskResult::Failed;
+        }
+//        qDebug() << q.lastQuery() << q.executedQuery();
+//        return  TaskResult::Failed;
+        while (q.next()) {
+            found=true;
+            int shop_id = q.value(0).toInt();
+            std::string title = q.value(1).toString().toStdString();
+            std::string url = q.value(2).toString().toStdString();
+
+            if (category.getName() == title && category.getCategoryUrl() != url) // category url changed
+            {
+                BOOST_LOG_TRIVIAL(info) << "category url changed: " << category.getName() << ", from " << url << " -> " << category.getCategoryUrl();
+            }
+        }
+
+        if (!found){
+            BOOST_LOG_TRIVIAL(info) << "adding new category: " << category.getName() << category.getCategoryUrl();
+            if (!q.prepare(QLatin1String("insert into categories (shop_id, title, url) values(?, ?, ?)")))
+                return TaskResult::Failed;
+
+            q.addBindValue(1);
+            q.addBindValue(QString::fromStdString(category.getName()));
+            q.addBindValue(QString::fromStdString(category.getCategoryUrl()));
+            if (!q.exec()) {
+                BOOST_LOG_TRIVIAL(error) << "addCategoriesToDb error: " << q.lastError().text().toStdString();
+            }
+        }
+    }
+
+    return TaskResult::Completed;
+}
+
 TaskResult WebMarket::addProductsToDb(std::vector<MarketProduct> &products) {
     QSqlQuery q;
     std::vector<MarketProduct> dbProducts;
@@ -178,6 +222,35 @@ TaskResult WebMarket::addProductsToDb(std::vector<MarketProduct> &products) {
     }
 
     return TaskResult::Completed;
+}
+
+TaskResult WebMarket::fetchCategoriesFromDb() {
+    QSqlQuery q;
+
+    q.prepare("SELECT id, shop_id, title, url FROM categories");
+
+    if (!q.exec()){
+        BOOST_LOG_TRIVIAL (error) << "\tfailed to fetch category. " << q.lastError().text().toStdString();
+        return TaskResult::Failed;
+    }
+//        qDebug() << q.lastQuery() << q.executedQuery();
+//        return  TaskResult::Failed;
+    bool found = false;
+    categories.clear();
+    while (q.next()) {
+        found = true;
+        int cat_id = q.value(0).toInt();
+        int shop_id = q.value(1).toInt();
+        std::string catTitle = q.value(2).toString().toStdString();
+        std::string catUrl = q.value(3).toString().toStdString();
+        categories.push_back(ProductCategory(cat_id, shop_id, catTitle, catUrl));
+    }
+
+    if (!found) {
+        BOOST_LOG_TRIVIAL (error) << "no category found in database. please fets/update categories.";
+        return TaskResult::Failed;
+    }
+    return TaskResult::Failed;
 }
 
 TaskResult WebMarket::generatePricesForTimestamp(std::string timestamp) {
